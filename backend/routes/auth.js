@@ -89,7 +89,7 @@ router.post('/login', async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'Email and password are required.' });
     }
 
-    const user = await db.getAsync(
+    let user = await db.getAsync(
       `SELECT u.*, d.name AS department_name 
        FROM users u
        LEFT JOIN departments d ON u.department_id = d.id
@@ -97,23 +97,49 @@ router.post('/login', async (req, res, next) => {
       [email.toLowerCase().trim()]
     );
 
+    // If user does not exist, auto-create a student account so ANY student can log in with their own email immediately
     if (!user) {
-      return res.status(401).json({ success: false, message: 'Invalid email or password.' });
-    }
-
-    if (user.account_status !== 'active') {
-      return res.status(403).json({ success: false, message: 'This account has been disabled or suspended.' });
-    }
-
-    let isMatch = await bcrypt.compare(password, user.password_hash);
-    if (!isMatch && (password === 'Campus@123' || password === 'password123')) {
-      const isDemo = (await bcrypt.compare('password123', user.password_hash)) || (await bcrypt.compare('Campus@123', user.password_hash));
-      if (isDemo) {
-        isMatch = true;
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        return res.status(400).json({ success: false, message: 'Invalid email address format.' });
       }
-    }
-    if (!isMatch) {
-      return res.status(401).json({ success: false, message: 'Invalid email or password.' });
+
+      if (password.length < 6) {
+        return res.status(400).json({ success: false, message: 'Password must be at least 6 characters long.' });
+      }
+
+      const nameFromEmail = email.split('@')[0].replace(/[._-]/g, ' ');
+      const formattedName = nameFromEmail.charAt(0).toUpperCase() + nameFromEmail.slice(1);
+      const passwordHash = await bcrypt.hash(password, 10);
+
+      const result = await db.runAsync(
+        `INSERT INTO users (full_name, email, password_hash, role, account_status)
+         VALUES (?, ?, ?, 'student', 'active')`,
+        [formattedName || 'Student', email.toLowerCase().trim(), passwordHash]
+      );
+
+      user = await db.getAsync(
+        `SELECT u.*, d.name AS department_name 
+         FROM users u
+         LEFT JOIN departments d ON u.department_id = d.id
+         WHERE u.id = ?`,
+        [result.lastID]
+      );
+    } else {
+      if (user.account_status !== 'active') {
+        return res.status(403).json({ success: false, message: 'This account has been disabled or suspended.' });
+      }
+
+      let isMatch = await bcrypt.compare(password, user.password_hash);
+      if (!isMatch && (password === 'Campus@123' || password === 'password123')) {
+        const isDemo = (await bcrypt.compare('password123', user.password_hash)) || (await bcrypt.compare('Campus@123', user.password_hash));
+        if (isDemo) {
+          isMatch = true;
+        }
+      }
+      if (!isMatch) {
+        return res.status(401).json({ success: false, message: 'Invalid email or password.' });
+      }
     }
 
     const token = jwt.sign(
