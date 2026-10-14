@@ -104,8 +104,22 @@ async function seedData() {
       phone: '+1 555-0102'
     },
     {
+      full_name: 'Prof. Alan Vance (Faculty)',
+      email: 'faculty@campus.edu',
+      role: 'faculty',
+      deptName: 'Science & Engineering Block',
+      phone: '+1 555-0102'
+    },
+    {
       full_name: 'Emily Watson (Student)',
       email: 'name@gmail.com',
+      role: 'student',
+      deptName: null,
+      phone: '+1 555-0103'
+    },
+    {
+      full_name: 'Student User',
+      email: 'student@campus.edu',
       role: 'student',
       deptName: null,
       phone: '+1 555-0103'
@@ -118,6 +132,13 @@ async function seedData() {
       phone: '+1 555-0104'
     },
     {
+      full_name: 'Robert Miller (Electrician)',
+      email: 'staff.electric@campus.edu',
+      role: 'staff',
+      deptName: 'Electrical & Power Works',
+      phone: '+1 555-0104'
+    },
+    {
       full_name: 'David Jenkins (Plumber)',
       email: 'staff2@gmail.com',
       role: 'staff',
@@ -125,8 +146,22 @@ async function seedData() {
       phone: '+1 555-0105'
     },
     {
+      full_name: 'David Jenkins (Plumber)',
+      email: 'staff.plumb@campus.edu',
+      role: 'staff',
+      deptName: 'Plumbing & Water Management',
+      phone: '+1 555-0105'
+    },
+    {
       full_name: 'Vikram Patel (IT Support)',
       email: 'staff3@gmail.com',
+      role: 'staff',
+      deptName: 'IT & Campus Network',
+      phone: '+1 555-0106'
+    },
+    {
+      full_name: 'Vikram Patel (IT Support)',
+      email: 'staff.it@campus.edu',
       role: 'staff',
       deptName: 'IT & Campus Network',
       phone: '+1 555-0106'

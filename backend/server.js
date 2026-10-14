@@ -3,6 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const { initSchema } = require('./config/db');
+const { seedData } = require('./config/seed');
 const errorHandler = require('./middleware/errorHandler');
 
 // Route imports
@@ -65,6 +66,7 @@ app.use(errorHandler);
 async function startServer() {
   try {
     await initSchema();
+    await seedData();
     app.listen(PORT, () => {
       console.log(`=======================================================`);
       console.log(` Campus Complaint Service System API Server Running `);

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { complaintsAPI, metadataAPI } from '../api/client';
+import { complaintsAPI, metadataAPI, SERVER_BASE_URL } from '../api/client';
 import {
   ArrowLeft,
   Clock,
@@ -261,7 +261,7 @@ export const ComplaintDetails = () => {
               {complaint.attachments.map((att) => (
                 <a
                   key={att.id}
-                  href={`http://localhost:5000${att.file_path}`}
+                  href={`${SERVER_BASE_URL}${att.file_path}`}
                   target="_blank"
                   rel="noreferrer"
                   style={{
