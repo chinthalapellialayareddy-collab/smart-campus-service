@@ -1,4 +1,4 @@
-const sqlite3 = require('sqlite3').verbose();
+let db;
 const path = require('path');
 const fs = require('fs');
 
@@ -11,43 +11,105 @@ if (!fs.existsSync(dbDir)) {
   fs.mkdirSync(dbDir, { recursive: true });
 }
 
-const db = new sqlite3.Database(resolvedDbPath, (err) => {
-  if (err) {
-    console.error('Failed to connect to SQLite database:', err.message);
-  } else {
-    console.log(`Connected to SQLite database at: ${resolvedDbPath}`);
-    // Enable Foreign Keys
-    db.run('PRAGMA foreign_keys = ON;');
+let useBuiltInSqlite = false;
+try {
+  const { DatabaseSync } = require('node:sqlite');
+  if (DatabaseSync) {
+    useBuiltInSqlite = true;
+    const rawDb = new DatabaseSync(resolvedDbPath);
+    rawDb.exec('PRAGMA foreign_keys = ON;');
+    console.log(`Connected to SQLite database via native node:sqlite at: ${resolvedDbPath}`);
+
+    db = {
+      raw: rawDb,
+      exec: function(sql, cb) {
+        try {
+          rawDb.exec(sql);
+          if (cb) cb(null);
+        } catch (err) {
+          if (cb) cb(err);
+          else throw err;
+        }
+      },
+      getAsync: function(sql, params = []) {
+        return new Promise((resolve, reject) => {
+          try {
+            const stmt = rawDb.prepare(sql);
+            const row = stmt.get(...params);
+            resolve(row || null);
+          } catch (err) {
+            reject(err);
+          }
+        });
+      },
+      allAsync: function(sql, params = []) {
+        return new Promise((resolve, reject) => {
+          try {
+            const stmt = rawDb.prepare(sql);
+            const rows = stmt.all(...params);
+            resolve(rows || []);
+          } catch (err) {
+            reject(err);
+          }
+        });
+      },
+      runAsync: function(sql, params = []) {
+        return new Promise((resolve, reject) => {
+          try {
+            const stmt = rawDb.prepare(sql);
+            const info = stmt.run(...params);
+            resolve({
+              lastID: info.lastInsertRowid !== undefined ? Number(info.lastInsertRowid) : 0,
+              changes: info.changes !== undefined ? Number(info.changes) : 0
+            });
+          } catch (err) {
+            reject(err);
+          }
+        });
+      }
+    };
   }
-});
+} catch (e) {
+  useBuiltInSqlite = false;
+}
 
-// Helper for executing queries as Promises
-db.getAsync = function (sql, params = []) {
-  return new Promise((resolve, reject) => {
-    db.get(sql, params, (err, row) => {
-      if (err) reject(err);
-      else resolve(row);
-    });
+if (!useBuiltInSqlite) {
+  const sqlite3 = require('sqlite3').verbose();
+  const rawDb = new sqlite3.Database(resolvedDbPath, (err) => {
+    if (err) {
+      console.error('Failed to connect to SQLite database:', err.message);
+    } else {
+      console.log(`Connected to SQLite database via sqlite3 at: ${resolvedDbPath}`);
+      rawDb.run('PRAGMA foreign_keys = ON;');
+    }
   });
-};
 
-db.allAsync = function (sql, params = []) {
-  return new Promise((resolve, reject) => {
-    db.all(sql, params, (err, rows) => {
-      if (err) reject(err);
-      else resolve(rows);
+  db = rawDb;
+  db.getAsync = function (sql, params = []) {
+    return new Promise((resolve, reject) => {
+      rawDb.get(sql, params, (err, row) => {
+        if (err) reject(err);
+        else resolve(row);
+      });
     });
-  });
-};
-
-db.runAsync = function (sql, params = []) {
-  return new Promise((resolve, reject) => {
-    db.run(sql, params, function (err) {
-      if (err) reject(err);
-      else resolve({ lastID: this.lastID, changes: this.changes });
+  };
+  db.allAsync = function (sql, params = []) {
+    return new Promise((resolve, reject) => {
+      rawDb.all(sql, params, (err, rows) => {
+        if (err) reject(err);
+        else resolve(rows);
+      });
     });
-  });
-};
+  };
+  db.runAsync = function (sql, params = []) {
+    return new Promise((resolve, reject) => {
+      rawDb.run(sql, params, function (err) {
+        if (err) reject(err);
+        else resolve({ lastID: this.lastID, changes: this.changes });
+      });
+    });
+  };
+}
 
 const initSchema = async () => {
   // Execute schema creation
